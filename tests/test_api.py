@@ -1,10 +1,8 @@
 import json
 import os
 import tempfile
-import threading
-import time
 import unittest
-from http.client import HTTPConnection
+
 from app import main
 
 
@@ -16,29 +14,22 @@ class APITestCase(unittest.TestCase):
         main.DB_PATH = cls.db_path
         main.init_db()
 
-        cls.server = main.ThreadingHTTPServer(("127.0.0.1", 0), main.TaskHandler)
-        cls.port = cls.server.server_address[1]
-        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
-        cls.thread.start()
-        time.sleep(0.05)
+        main.app.testing = True
+        cls.client = main.app.test_client()
 
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown()
-        cls.server.server_close()
-        cls.thread.join(timeout=1)
         cls.tmp_dir.cleanup()
 
     def request(self, method, path, payload=None):
-        conn = HTTPConnection("127.0.0.1", self.port, timeout=3)
-        body = json.dumps(payload).encode("utf-8") if payload is not None else None
-        headers = {"Content-Type": "application/json"} if payload is not None else {}
-        conn.request(method, path, body=body, headers=headers)
-        response = conn.getresponse()
-        raw = response.read()
+        kwargs = {}
+        if payload is not None:
+            kwargs["data"] = json.dumps(payload)
+            kwargs["content_type"] = "application/json"
+        response = self.client.open(path, method=method, **kwargs)
+        raw = response.get_data()
         data = json.loads(raw.decode("utf-8")) if raw else None
-        conn.close()
-        return response.status, data
+        return response.status_code, data
 
     def test_task_lifecycle(self):
         status, task = self.request("POST", "/tasks", {"title": "Write tests", "description": "for API"})
