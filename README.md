@@ -1,6 +1,6 @@
 # REST-API-Task-Manager
 
-A simple REST API for managing tasks, built with Python's standard library and SQLite.
+A simple REST API for managing tasks, built with built with Flask and SQLite.
 
 ## Features
 
